@@ -28,3 +28,5 @@ msbuild.wrn
 
 # Visual Studio 
 .vs/
+#IMG
+images/
