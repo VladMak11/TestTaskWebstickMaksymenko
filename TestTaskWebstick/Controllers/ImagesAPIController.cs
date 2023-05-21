@@ -6,6 +6,9 @@ using System.Text.RegularExpressions;
 using TestTaskWebstick.Data;
 using TestTaskWebstick.Models;
 using TestTaskWebstick.Models.DTO;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+
 
 namespace TestTaskWebstick.Controllers
 {
@@ -17,6 +20,8 @@ namespace TestTaskWebstick.Controllers
         private readonly ApplicationDBContext _db;
         private static readonly object _lockObject = new object();
         const int MAX_SIZE_IN_BYTES_PIC = 5 * 1024 * 1024; //МБ
+        const int AVAILABLE_CONVERT_SIZE_1 = 100;
+        const int AVAILABLE_CONVERT_SIZE_2 = 300;
 
         public ImagesAPIController(ApplicationDBContext db)
         {
@@ -67,9 +72,9 @@ namespace TestTaskWebstick.Controllers
                 HttpResponseMessage response = await client.GetAsync(url);
                 if (response.IsSuccessStatusCode)
                 {
-                    var cc = response.Content.Headers.ContentType.ToString();
-                     var tt = GetFileExtensionFromContentType(cc);
-                    return tt;
+                    //var cc = response.Content.Headers.ContentType.ToString();
+                    // var tt = GetFileExtensionFromContentType(cc);
+                    return GetFileExtensionFromContentType(response.Content.Headers.ContentType.ToString());
                 }
             }
             return null; 
@@ -104,7 +109,7 @@ namespace TestTaskWebstick.Controllers
        
 
         [HttpPost("upload-by-url")]
-        //[ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> UploadImageByUrl([FromBody] ImageCreateRequest imageobj)
@@ -130,9 +135,9 @@ namespace TestTaskWebstick.Controllers
                 
                 try
                 {
-                    Image image = new Image 
+                    ImageModel image = new ImageModel
                     { 
-                        Id = _db.Images.Count() > 0 ? _db.Images.OrderByDescending(x => x.Id).FirstOrDefault().Id + 1 : 0,
+                        Id = _db.Images.Count() > 0 ? _db.Images.OrderByDescending(x => x.Id).FirstOrDefault().Id + 1 : 1,
                         Url =  DownloadImageToStorageByUrl(imageUrl, currentFormatPic(imageUrl).Result).Result
                     };
                      _db.Images.Add(image);
@@ -163,8 +168,79 @@ namespace TestTaskWebstick.Controllers
             {
                 return NotFound();
             }
+            if (!System.IO.File.Exists(objImage.Url))
+            {
+                return NotFound("Image with specific url does not exist.");
+            }
             string url = $"{Request.Scheme}://{Request.Host}/{objImage.Url}";
             return Ok(new { url });
+        }
+
+        [HttpGet("get-url/{id:int}/size/{size:int}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetImageThumnailUrl(int id, int size)
+        {
+            if (id == 0)
+            {
+                return BadRequest();
+            }
+            var objImage = await _db.Images.FirstOrDefaultAsync(x => x.Id == id);
+
+            if (objImage == null)
+            {
+                return NotFound();
+            }
+            if (!System.IO.File.Exists(objImage.Url))
+            {
+                return NotFound("Image with specific url does not exist.");
+            }
+            if(size != AVAILABLE_CONVERT_SIZE_1 && size != AVAILABLE_CONVERT_SIZE_2)
+            {
+                return BadRequest("Unavalaible size");
+            }
+            string imagePath = objImage.Url;
+            int desiredSize = size;
+            string fileName = Path.GetFileNameWithoutExtension(imagePath);
+            string extension = Path.GetExtension(imagePath);
+            string thumbnailPath =$"images/{fileName}_{size}x{size}{extension}";
+            if (!System.IO.File.Exists(thumbnailPath))
+            {
+                using (Image image = Image.Load(imagePath))
+                {
+                    image.Mutate(x => x.Resize(desiredSize, desiredSize));
+                    image.Save(thumbnailPath);
+                }
+            }
+            return Ok(thumbnailPath);
+        }
+
+        [HttpDelete("remove")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> Remove(int id)
+        {
+            if (id == 0)
+            {
+                return BadRequest();
+            }
+            var objImage = await _db.Images.FirstOrDefaultAsync(x => x.Id == id);
+            if (objImage == null)
+            {
+                return NotFound();
+            }
+            string removeImagePath = objImage.Url;
+            if (!System.IO.File.Exists(removeImagePath))
+            {
+                return NotFound();
+            }
+            System.IO.File.Delete(removeImagePath);
+            
+            _db.Images.Remove(objImage);
+            await _db.SaveChangesAsync();
+            return Ok();
         }
 
 
