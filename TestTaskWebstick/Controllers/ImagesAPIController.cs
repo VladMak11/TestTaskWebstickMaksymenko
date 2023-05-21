@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using TestTaskWebstick.Data;
 using TestTaskWebstick.Models;
 using TestTaskWebstick.Models.DTO;
@@ -15,6 +16,7 @@ namespace TestTaskWebstick.Controllers
     {
         private readonly ApplicationDBContext _db;
         private static readonly object _lockObject = new object();
+        const int MAX_SIZE_IN_BYTES_PIC = 5 * 1024 * 1024; //МБ
 
         public ImagesAPIController(ApplicationDBContext db)
         {
@@ -35,23 +37,74 @@ namespace TestTaskWebstick.Controllers
                 }
             }
         }
-
-        private async Task<string> DownloadImageToStorageByUrl(string url)
+       
+        private async Task<string> DownloadImageToStorageByUrl(string url, string formatPic)
         {
             using (HttpClient client = new HttpClient())
             {
                 byte[] imgData = await client.GetByteArrayAsync(url);
 
                 string fileName, filePath;
-                fileName = Guid.NewGuid().ToString();
+                fileName = Guid.NewGuid().ToString()+$".{formatPic}";
                 filePath = Path.Combine("images", fileName);
                 System.IO.File.WriteAllBytes(filePath, imgData);
                 return filePath;
             }
                
         }
+        private async Task<bool> IsImageUrlValid(string url)
+        {
+            using (HttpClient client = new HttpClient())
+            {
+                HttpResponseMessage response = client.GetAsync(url).GetAwaiter().GetResult();
+                return  response.IsSuccessStatusCode && response.Content.Headers.ContentType.MediaType.StartsWith("image/");
+            }
+        }
+        private async Task<string> currentFormatPic(string url)
+        {
+            using (HttpClient client = new HttpClient())
+            {
+                HttpResponseMessage response = await client.GetAsync(url);
+                if (response.IsSuccessStatusCode)
+                {
+                    var cc = response.Content.Headers.ContentType.ToString();
+                     var tt = GetFileExtensionFromContentType(cc);
+                    return tt;
+                }
+            }
+            return null; 
+        }
+        private string GetFileExtensionFromContentType(string contentType)
+        {
+            string pattern = @"image/(.+)";
+            Regex regex = new Regex(pattern);
+            Match match = regex.Match(contentType);
+            if (match.Success && match.Groups.Count > 1)
+            {
+                return match.Groups[1].Value;
+            }
+            return null;
+        }
+        private async Task<bool> CheckImageSizeByUrl(string url)
+        {
+            using (HttpClient client = new HttpClient())
+            {
+                HttpResponseMessage response = await client.GetAsync(url);
+                if (response.IsSuccessStatusCode)
+                {
+                    byte[] data = await response.Content.ReadAsByteArrayAsync();
+                    if (data.Length <= MAX_SIZE_IN_BYTES_PIC)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+       
 
         [HttpPost("upload-by-url")]
+        //[ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> UploadImageByUrl([FromBody] ImageCreateRequest imageobj)
@@ -62,27 +115,30 @@ namespace TestTaskWebstick.Controllers
             }
             string imageUrl = imageobj.Url;
 
-            if (!UrlExists(imageUrl))
+            if (!UrlExists(imageUrl) || !IsImageUrlValid(imageUrl).Result)
             {
                 return StatusCode(StatusCodes.Status400BadRequest, "Invalid image URL");
             }
 
-            //TODO - size PIC = 5*1024*1024 req=400
+            if (!CheckImageSizeByUrl(imageUrl).Result)
+            {
+                return StatusCode(StatusCodes.Status400BadRequest, "Image more 5 MB");
+            }
 
             lock (_lockObject)
             {
+                
                 try
                 {
-                    
                     Image image = new Image 
                     { 
                         Id = _db.Images.Count() > 0 ? _db.Images.OrderByDescending(x => x.Id).FirstOrDefault().Id + 1 : 0,
-                        Url =  DownloadImageToStorageByUrl(imageUrl).Result
-                };
+                        Url =  DownloadImageToStorageByUrl(imageUrl, currentFormatPic(imageUrl).Result).Result
+                    };
                      _db.Images.Add(image);
                      _db.SaveChanges();
-
-                    return Ok(new { url = image.Url});
+                    string url = $"{Request.Scheme}://{Request.Host}/{image.Url}";
+                    return Ok(new { url });
                 }
                 catch (Exception ex)
                 {
@@ -91,12 +147,11 @@ namespace TestTaskWebstick.Controllers
             }
         }
 
-
         [HttpGet("get-url")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<Image>> GetImageUrl(int id)
+        public async Task<IActionResult> GetImageUrl(int id)
         {
             if (id == 0)
             {
@@ -108,7 +163,8 @@ namespace TestTaskWebstick.Controllers
             {
                 return NotFound();
             }
-            return Ok(objImage);
+            string url = $"{Request.Scheme}://{Request.Host}/{objImage.Url}";
+            return Ok(new { url });
         }
 
 
