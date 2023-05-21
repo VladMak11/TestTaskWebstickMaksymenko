@@ -236,7 +236,14 @@ namespace TestTaskWebstick.Controllers
             {
                 return NotFound();
             }
-            System.IO.File.Delete(removeImagePath);
+            string fileName = Path.GetFileNameWithoutExtension(removeImagePath);
+            string[] files = Directory.GetFiles("images", $"*{fileName}*");
+
+            foreach (string file in files)
+            {
+                System.IO.File.Delete(file);
+            }
+
             
             _db.Images.Remove(objImage);
             await _db.SaveChangesAsync();
