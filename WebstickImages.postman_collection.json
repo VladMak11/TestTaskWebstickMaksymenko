@@ -1,0 +1,151 @@
+{
+	"info": {
+		"_postman_id": "e6a997fe-a444-45e9-a20b-8ca55574f916",
+		"name": "WebstickImages",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "upload-by-url",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"url\": \"https://webstick.com.ua/wp-content/uploads/2023/01/volt_control.jpg\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://localhost:7233/api/images/upload-by-url",
+					"protocol": "https",
+					"host": [
+						"localhost"
+					],
+					"port": "7233",
+					"path": [
+						"api",
+						"images",
+						"upload-by-url"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get-url/:id",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://localhost:7233/api/images/get-url/1",
+					"protocol": "https",
+					"host": [
+						"localhost"
+					],
+					"port": "7233",
+					"path": [
+						"api",
+						"images",
+						"get-url",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get-url/:id/size/:size_100",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://localhost:7233/api/images/get-url/1/size/100",
+					"protocol": "https",
+					"host": [
+						"localhost"
+					],
+					"port": "7233",
+					"path": [
+						"api",
+						"images",
+						"get-url",
+						"1",
+						"size",
+						"100"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get-url/:id/size/:size_300",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://localhost:7233/api/images/get-url/1/size/300",
+					"protocol": "https",
+					"host": [
+						"localhost"
+					],
+					"port": "7233",
+					"path": [
+						"api",
+						"images",
+						"get-url",
+						"1",
+						"size",
+						"300"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "remove/:id",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://localhost:7233/api/images/remove/1",
+					"protocol": "https",
+					"host": [
+						"localhost"
+					],
+					"port": "7233",
+					"path": [
+						"api",
+						"images",
+						"remove",
+						"1"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

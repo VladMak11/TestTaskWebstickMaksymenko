@@ -152,7 +152,7 @@ namespace TestTaskWebstick.Controllers
             }
         }
 
-        [HttpGet("get-url")]
+        [HttpGet("get-url/{id:int}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -216,7 +216,7 @@ namespace TestTaskWebstick.Controllers
             return Ok(thumbnailPath);
         }
 
-        [HttpDelete("remove")]
+        [HttpDelete("remove/{id:int}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
